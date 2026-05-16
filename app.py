@@ -69,6 +69,7 @@ class Spiel(db.Model):
     uhrzeit = db.Column(db.String(5), nullable=False)       # "11:00"
     gegner = db.Column(db.String(200), nullable=False)
     heimspiel = db.Column(db.Boolean, nullable=False)
+    maps_link = db.Column(db.String(500), nullable=True)
 
 
 # ---------------------------------------------------------------------------
@@ -236,11 +237,46 @@ def admin():
 @app.route('/admin/termin/hinzufuegen', methods=['POST'])
 @admin_required
 def termin_hinzufuegen():
-    datum = request.form.get('datum', '').strip()
-    if datum:
-        if not Spieltermin.query.filter_by(datum=datum).first():
-            db.session.add(Spieltermin(datum=datum))
-            db.session.commit()
+    datum      = request.form.get('datum', '').strip()
+    mannschaft = request.form.get('mannschaft', '').strip()
+    uhrzeit    = request.form.get('uhrzeit', '').strip()
+    gegner     = request.form.get('gegner', '').strip()
+    heimspiel  = request.form.get('heimspiel') == '1'
+    maps_link  = request.form.get('maps_link', '').strip() or None
+
+    if not (datum and mannschaft and uhrzeit and gegner):
+        return redirect(url_for('admin'))
+
+    termin = Spieltermin.query.filter_by(datum=datum).first()
+    if not termin:
+        termin = Spieltermin(datum=datum)
+        db.session.add(termin)
+        db.session.flush()
+
+    existing = Spiel.query.filter_by(termin_id=termin.id, mannschaft=mannschaft).first()
+    if existing:
+        existing.uhrzeit   = uhrzeit
+        existing.gegner    = gegner
+        existing.heimspiel = heimspiel
+        existing.maps_link = maps_link
+    else:
+        db.session.add(Spiel(termin_id=termin.id, mannschaft=mannschaft,
+                             uhrzeit=uhrzeit, gegner=gegner,
+                             heimspiel=heimspiel, maps_link=maps_link))
+    db.session.commit()
+    return redirect(url_for('admin'))
+
+
+@app.route('/admin/spiel/<int:spiel_id>/loeschen', methods=['POST'])
+@admin_required
+def spiel_loeschen(spiel_id):
+    spiel = db.get_or_404(Spiel, spiel_id)
+    termin = spiel.termin
+    db.session.delete(spiel)
+    db.session.flush()
+    if not termin.spiele:
+        db.session.delete(termin)
+    db.session.commit()
     return redirect(url_for('admin'))
 
 
@@ -387,10 +423,14 @@ def ersatz_runter(termin_id, mannschaft, kind_id):
 with app.app_context():
     db.create_all()
     from sqlalchemy import inspect, text
-    cols = [c['name'] for c in inspect(db.engine).get_columns('aufstellung')]
-    if 'mannschaft' not in cols:
-        with db.engine.connect() as conn:
+    with db.engine.connect() as conn:
+        auf_cols = [c['name'] for c in inspect(db.engine).get_columns('aufstellung')]
+        if 'mannschaft' not in auf_cols:
             conn.execute(text('ALTER TABLE aufstellung ADD COLUMN mannschaft VARCHAR(10)'))
+            conn.commit()
+        spiel_cols = [c['name'] for c in inspect(db.engine).get_columns('spiel')]
+        if 'maps_link' not in spiel_cols:
+            conn.execute(text('ALTER TABLE spiel ADD COLUMN maps_link VARCHAR(500)'))
             conn.commit()
 
 if __name__ == '__main__':

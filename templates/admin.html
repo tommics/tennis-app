@@ -10,57 +10,133 @@
 <div class="row g-4">
 
   <!-- Spieltermine -->
-  <div class="col-md-6">
+  <div class="col-md-7">
     <div class="card h-100">
       <div class="card-header hdr-admin">
         <i class="bi bi-calendar3 me-2"></i>Spieltermine
       </div>
       <div class="card-body">
+
+        <!-- Existing entries -->
         {% if termine %}
-        <div class="d-flex flex-column gap-2 mb-3">
+        <div class="d-flex flex-column gap-2 mb-4">
           {% for termin in termine %}
-          <div class="d-flex align-items-center justify-content-between px-3 py-2"
-               style="background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0">
-            <div>
-              <span class="fw-semibold" style="font-size:.9rem">{{ termin.datum_anzeige }}</span>
-              <div class="d-flex gap-1 mt-1 flex-wrap">
-                {% for spiel in termin.spiele %}
-                <span class="chip {% if spiel.mannschaft == 'BD 1' %}chip-bd1{% else %}chip-bd2{% endif %}">
-                  {{ spiel.mannschaft }}
-                </span>
-                <span class="chip {% if spiel.heimspiel %}chip-home{% else %}chip-away{% endif %}">
-                  {% if spiel.heimspiel %}Heim{% else %}Auswärts{% endif %}
-                </span>
-                {% endfor %}
+            {% for spiel in termin.spiele %}
+            <div class="p-3" style="background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0">
+              <div class="d-flex align-items-start justify-content-between gap-2">
+                <div class="flex-grow-1">
+                  <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                    <span class="fw-semibold" style="font-size:.95rem">{{ termin.datum_anzeige }}</span>
+                    <span class="chip {% if spiel.mannschaft == 'BD 1' %}chip-bd1{% else %}chip-bd2{% endif %}">
+                      {{ spiel.mannschaft }}
+                    </span>
+                    <span class="chip {% if spiel.heimspiel %}chip-home{% else %}chip-away{% endif %}">
+                      {% if spiel.heimspiel %}<i class="bi bi-house-fill"></i> Heim
+                      {% else %}<i class="bi bi-geo-alt-fill"></i> Auswärts{% endif %}
+                    </span>
+                    <span style="font-size:.8rem;color:var(--text-muted)">
+                      <i class="bi bi-clock me-1"></i>{{ spiel.uhrzeit }} Uhr
+                    </span>
+                  </div>
+                  <div style="font-size:.82rem;color:var(--text-muted)">
+                    <i class="bi bi-people me-1"></i>{{ spiel.gegner }}
+                  </div>
+                  {% if spiel.maps_link %}
+                  <div class="mt-1">
+                    <a href="{{ spiel.maps_link }}" target="_blank" rel="noopener"
+                       style="font-size:.78rem;color:var(--color-bd1);text-decoration:none">
+                      <i class="bi bi-map me-1"></i>Google Maps
+                    </a>
+                  </div>
+                  {% endif %}
+                </div>
+                <form method="post" action="/admin/spiel/{{ spiel.id }}/loeschen"
+                      onsubmit="return confirm('Dieses Spiel löschen?')">
+                  <button type="submit" class="btn btn-sm py-1 px-2 flex-shrink-0"
+                          style="font-size:.75rem;color:#dc2626;border:1px solid #fecaca;background:#fff5f5;border-radius:6px">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
               </div>
             </div>
-            <form method="post" action="/admin/termin/{{ termin.id }}/loeschen"
-                  onsubmit="return confirm('Termin {{ termin.datum_anzeige }} wirklich löschen?')">
-              <button type="submit" class="btn btn-sm py-1 px-2"
-                      style="font-size:.75rem;color:#dc2626;border:1px solid #fecaca;background:#fff5f5;border-radius:6px">
-                <i class="bi bi-trash"></i>
-              </button>
-            </form>
-          </div>
+            {% endfor %}
           {% endfor %}
         </div>
         {% else %}
-          <p class="text-muted mb-3" style="font-size:.875rem">Noch keine Termine eingetragen.</p>
+          <p class="text-muted mb-4" style="font-size:.875rem">Noch keine Termine eingetragen.</p>
         {% endif %}
 
-        <form method="post" action="/admin/termin/hinzufuegen" class="d-flex gap-2">
-          <input type="date" name="datum" class="form-control form-control-sm" required
-                 style="border-radius:8px;font-size:.875rem">
-          <button type="submit" class="btn btn-brand btn-sm px-3">
-            <i class="bi bi-plus-lg me-1"></i>Hinzufügen
-          </button>
-        </form>
+        <!-- Add form -->
+        <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:1.1rem">
+          <div class="fw-semibold mb-3" style="font-size:.875rem;color:#0369a1">
+            <i class="bi bi-plus-circle me-1"></i>Neues Spiel hinzufügen
+          </div>
+          <form method="post" action="/admin/termin/hinzufuegen">
+            <div class="row g-2">
+
+              <div class="col-sm-6">
+                <label class="form-label" style="font-size:.78rem;font-weight:600;color:var(--text-muted)">Datum</label>
+                <input type="date" name="datum" class="form-control form-control-sm" required
+                       style="border-radius:8px;font-size:.875rem">
+              </div>
+
+              <div class="col-sm-3">
+                <label class="form-label" style="font-size:.78rem;font-weight:600;color:var(--text-muted)">Mannschaft</label>
+                <select name="mannschaft" class="form-select form-select-sm" required
+                        style="border-radius:8px;font-size:.875rem">
+                  <option value="">–</option>
+                  <option value="BD 1">BD 1</option>
+                  <option value="BD 2">BD 2</option>
+                </select>
+              </div>
+
+              <div class="col-sm-3">
+                <label class="form-label" style="font-size:.78rem;font-weight:600;color:var(--text-muted)">Uhrzeit</label>
+                <input type="time" name="uhrzeit" class="form-control form-control-sm" value="11:00" required
+                       style="border-radius:8px;font-size:.875rem">
+              </div>
+
+              <div class="col-sm-8">
+                <label class="form-label" style="font-size:.78rem;font-weight:600;color:var(--text-muted)">Gegner / Spielort</label>
+                <input type="text" name="gegner" class="form-control form-control-sm"
+                       placeholder="z. B. TC Rondorf" required
+                       style="border-radius:8px;font-size:.875rem">
+              </div>
+
+              <div class="col-sm-4">
+                <label class="form-label" style="font-size:.78rem;font-weight:600;color:var(--text-muted)">Heim / Auswärts</label>
+                <select name="heimspiel" class="form-select form-select-sm" required
+                        style="border-radius:8px;font-size:.875rem">
+                  <option value="1">🏠 Heimspiel</option>
+                  <option value="0">✈️ Auswärtsspiel</option>
+                </select>
+              </div>
+
+              <div class="col-12">
+                <label class="form-label" style="font-size:.78rem;font-weight:600;color:var(--text-muted)">
+                  Google Maps Link <span style="font-weight:400;opacity:.7">(optional)</span>
+                </label>
+                <input type="url" name="maps_link" class="form-control form-control-sm"
+                       placeholder="https://maps.google.com/..."
+                       style="border-radius:8px;font-size:.875rem">
+              </div>
+
+              <div class="col-12 mt-1">
+                <button type="submit" class="btn btn-brand btn-sm px-4">
+                  <i class="bi bi-plus-lg me-1"></i>Hinzufügen
+                </button>
+              </div>
+
+            </div>
+          </form>
+        </div>
+
       </div>
     </div>
   </div>
 
   <!-- Right column -->
-  <div class="col-md-6 d-flex flex-column gap-4">
+  <div class="col-md-5 d-flex flex-column gap-4">
 
     <!-- Zeitplan sperren -->
     <div class="card">
@@ -73,9 +149,9 @@
             <div style="font-size:.875rem;font-weight:500">Aktueller Status</div>
             <div class="mt-1">
               {% if gesperrt %}
-                <span class="status-locked"><i class="bi bi-lock-fill me-1"></i>Gesperrt – Eltern können nicht ändern</span>
+                <span class="status-locked"><i class="bi bi-lock-fill me-1"></i>Gesperrt</span>
               {% else %}
-                <span class="status-open"><i class="bi bi-unlock-fill me-1"></i>Offen – Eltern können eintragen</span>
+                <span class="status-open"><i class="bi bi-unlock-fill me-1"></i>Offen</span>
               {% endif %}
             </div>
           </div>

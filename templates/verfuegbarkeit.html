@@ -45,10 +45,14 @@
                   <i class="bi bi-clock me-1"></i>{{ spiel.uhrzeit }} Uhr
                 </span>
                 <span style="font-size:.8rem;color:var(--text-muted)">
-                  &middot;
-                  {% if spiel.heimspiel %}{{ spiel.gegner }}
-                  {% else %}{{ spiel.gegner }}{% endif %}
+                  &middot; {{ spiel.gegner }}
                 </span>
+                {% if spiel.maps_link %}
+                <a href="{{ spiel.maps_link }}" target="_blank" rel="noopener"
+                   style="font-size:.78rem;color:var(--color-bd1);text-decoration:none;white-space:nowrap">
+                  <i class="bi bi-map"></i> Maps
+                </a>
+                {% endif %}
               </div>
               {% endfor %}
             </div>

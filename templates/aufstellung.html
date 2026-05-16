@@ -66,12 +66,16 @@
                       {% if spiel.heimspiel %}<i class="bi bi-house-fill"></i> Heim
                       {% else %}<i class="bi bi-geo-alt-fill"></i> Auswärts{% endif %}
                     </span>
-                    <span style="font-size:.72rem;opacity:.85">
+                    <div style="font-size:.72rem;opacity:.9">
                       <i class="bi bi-clock me-1"></i>{{ spiel.uhrzeit }} Uhr
-                      &middot;
-                      {% if spiel.heimspiel %}{{ spiel.gegner }}
-                      {% else %}{{ spiel.gegner }}{% endif %}
-                    </span>
+                      &middot; {{ spiel.gegner }}
+                    </div>
+                    {% if spiel.maps_link %}
+                    <a href="{{ spiel.maps_link }}" target="_blank" rel="noopener"
+                       class="chip chip-home mt-1" style="text-decoration:none">
+                      <i class="bi bi-map"></i> Wegbeschreibung
+                    </a>
+                    {% endif %}
                   </div>
                 </div>
               </div>
