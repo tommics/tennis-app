@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block title %}Aufstellung{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <div class="page-title">Aufstellung</div>
+    <div class="text-muted" style="font-size:.875rem">Spieler und Ersatz je Spieltag</div>
+  </div>
+  {% if gesperrt %}
+    <span class="status-locked"><i class="bi bi-lock-fill me-1"></i>Gesperrt</span>
+  {% else %}
+    <span class="status-open"><i class="bi bi-unlock-fill me-1"></i>Offen</span>
+  {% endif %}
+</div>
+
+{% if not termine %}
+  <div class="card">
+    <div class="card-body text-center py-5 text-muted">
+      <i class="bi bi-calendar-x d-block mb-2" style="font-size:2rem"></i>
+      Noch keine Spieltermine vorhanden.
+    </div>
+  </div>
+{% else %}
+  {% set has_lineup = namespace(val=false) %}
+  {% for termin in termine %}
+    {% for spiel in termin.spiele %}
+      {% if lineup[termin.id][spiel.mannschaft]['spieler'] or lineup[termin.id][spiel.mannschaft]['ersatz'] %}
+        {% set has_lineup.val = true %}
+      {% endif %}
+    {% endfor %}
+  {% endfor %}
+
+  {% if not has_lineup.val %}
+    <div class="card">
+      <div class="card-body text-center py-5 text-muted">
+        <i class="bi bi-shuffle d-block mb-2" style="font-size:2rem"></i>
+        Noch keine Aufstellung generiert.
+        {% if ist_admin %}
+          <div class="mt-2">
+            <a href="/admin" class="btn btn-outline-secondary btn-sm">Im Admin-Bereich generieren</a>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  {% else %}
+    <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
+      {% for termin in termine %}
+        {% for spiel in termin.spiele %}
+          {% set m = spiel.mannschaft %}
+          {% set spieler_list = lineup[termin.id][m]['spieler'] %}
+          {% set ersatz_list  = lineup[termin.id][m]['ersatz']  %}
+          {% if spieler_list or ersatz_list %}
+          <div class="col">
+            <div class="card h-100" style="overflow:hidden">
+
+              <!-- Card header: team color + home/away chip -->
+              <div class="card-header {% if m == 'BD 1' %}hdr-bd1{% else %}hdr-bd2{% endif %}">
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                  <div>
+                    <div style="font-size:.7rem;opacity:.75;text-transform:uppercase;letter-spacing:.5px">{{ termin.datum_anzeige }}</div>
+                    <div style="font-size:1.05rem;font-weight:700;margin-top:1px">{{ m }}</div>
+                  </div>
+                  <div class="d-flex flex-column align-items-end gap-1">
+                    <span class="chip {% if spiel.heimspiel %}chip-home{% else %}chip-away{% endif %}">
+                      {% if spiel.heimspiel %}<i class="bi bi-house-fill"></i> Heim
+                      {% else %}<i class="bi bi-geo-alt-fill"></i> Auswärts{% endif %}
+                    </span>
+                    <span style="font-size:.72rem;opacity:.85">
+                      <i class="bi bi-clock me-1"></i>{{ spiel.uhrzeit }} Uhr
+                      &middot;
+                      {% if spiel.heimspiel %}{{ spiel.gegner }}
+                      {% else %}{{ spiel.gegner }}{% endif %}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card-body p-0">
+
+                <!-- Spieler -->
+                <div class="px-4 pt-3 pb-2">
+                  <div class="d-flex align-items-center gap-2 mb-2">
+                    <span style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted)">Spieler</span>
+                    <span class="chip {% if m == 'BD 1' %}chip-bd1{% else %}chip-bd2{% endif %}" style="font-size:.68rem">
+                      {{ spieler_list|length }}/4
+                    </span>
+                  </div>
+                  {% if spieler_list %}
+                  <div class="d-flex flex-column gap-1">
+                    {% for eintrag, kind in spieler_list %}
+                    <div class="d-flex align-items-center justify-content-between py-2 px-3"
+                         style="background:#f8fafc;border-radius:8px">
+                      <div class="d-flex align-items-center gap-2">
+                        <span style="font-size:.7rem;font-weight:700;color:var(--text-muted);min-width:16px">{{ loop.index }}</span>
+                        <span style="font-weight:500">{{ kind.name }}</span>
+                      </div>
+                      {% if ist_admin %}
+                      <form method="post"
+                            action="/aufstellung/{{ termin.id }}/{{ m }}/spieler/{{ kind.id }}/abwesend"
+                            onsubmit="return confirm('{{ kind.name }} als abwesend markieren?')">
+                        <button type="submit" class="btn btn-sm py-0 px-2"
+                                style="font-size:.72rem;color:#dc2626;border:1px solid #fecaca;background:#fff5f5;border-radius:6px">
+                          <i class="bi bi-x me-1"></i>Abwesend
+                        </button>
+                      </form>
+                      {% endif %}
+                    </div>
+                    {% endfor %}
+                  </div>
+                  {% else %}
+                    <p class="text-muted mb-0" style="font-size:.85rem">Keine Spieler.</p>
+                  {% endif %}
+                </div>
+
+                <!-- Ersatz -->
+                {% if ersatz_list %}
+                <div class="px-4 pb-3 pt-1">
+                  <div class="d-flex align-items-center gap-2 mb-2 mt-2">
+                    <span style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted)">Ersatz</span>
+                  </div>
+                  <div class="d-flex flex-column gap-1">
+                    {% for eintrag, kind in ersatz_list %}
+                    <div class="d-flex align-items-center justify-content-between py-2 px-3"
+                         style="background:#f8fafc;border-radius:8px;border-left:3px solid #e2e8f0">
+                      <div class="d-flex align-items-center gap-2">
+                        <span style="font-size:.7rem;font-weight:700;color:#cbd5e1;min-width:16px">{{ loop.index }}</span>
+                        <span style="font-weight:500;color:var(--text-muted)">{{ kind.name }}</span>
+                      </div>
+                      {% if ist_admin %}
+                      <div class="d-flex gap-1">
+                        {% if not loop.first %}
+                        <form method="post" action="/aufstellung/{{ termin.id }}/{{ m }}/ersatz/{{ kind.id }}/hoch">
+                          <button type="submit" class="btn btn-sm py-0 px-2"
+                                  style="font-size:.75rem;border:1px solid #e2e8f0;background:#fff;border-radius:6px"
+                                  title="Nach oben"><i class="bi bi-chevron-up"></i></button>
+                        </form>
+                        {% endif %}
+                        {% if not loop.last %}
+                        <form method="post" action="/aufstellung/{{ termin.id }}/{{ m }}/ersatz/{{ kind.id }}/runter">
+                          <button type="submit" class="btn btn-sm py-0 px-2"
+                                  style="font-size:.75rem;border:1px solid #e2e8f0;background:#fff;border-radius:6px"
+                                  title="Nach unten"><i class="bi bi-chevron-down"></i></button>
+                        </form>
+                        {% endif %}
+                      </div>
+                      {% endif %}
+                    </div>
+                    {% endfor %}
+                  </div>
+                </div>
+                {% endif %}
+
+              </div>
+            </div>
+          </div>
+          {% endif %}
+        {% endfor %}
+      {% endfor %}
+    </div>
+
+    {% if ist_admin %}
+    <div class="mt-4">
+      <form method="post" action="/admin/aufstellung/generieren"
+            onsubmit="return confirm('Aufstellung neu generieren? Manuelle Änderungen gehen verloren.')">
+        <button type="submit" class="btn btn-outline-secondary">
+          <i class="bi bi-arrow-clockwise me-2"></i>Aufstellung neu generieren
+        </button>
+      </form>
+    </div>
+    {% endif %}
+  {% endif %}
+{% endif %}
+
+{% endblock %}

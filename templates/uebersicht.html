@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Übersicht{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <div class="page-title">Verfügbarkeits-Übersicht</div>
+    <div class="text-muted" style="font-size:.875rem">Wer ist an welchem Spieltag dabei?</div>
+  </div>
+  {% if gesperrt %}
+    <span class="status-locked"><i class="bi bi-lock-fill me-1"></i>Gesperrt</span>
+  {% else %}
+    <span class="status-open"><i class="bi bi-unlock-fill me-1"></i>Offen</span>
+  {% endif %}
+</div>
+
+{% if not kinder %}
+  <div class="card">
+    <div class="card-body text-center py-5 text-muted">
+      <i class="bi bi-people d-block mb-2" style="font-size:2rem"></i>
+      Noch keine Kinder eingetragen.
+    </div>
+  </div>
+{% elif not termine %}
+  <div class="card">
+    <div class="card-body text-center py-5 text-muted">
+      <i class="bi bi-calendar-x d-block mb-2" style="font-size:2rem"></i>
+      Noch keine Spieltermine eingetragen.
+    </div>
+  </div>
+{% else %}
+  <div class="table-card">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0" style="font-size:.875rem">
+        <thead style="background:#f8fafc">
+          <tr>
+            <th class="text-start ps-4 py-3" style="min-width:140px">Kind</th>
+            {% for termin in termine %}
+            <th class="text-center py-3" style="min-width:110px">
+              <div class="fw-semibold" style="font-size:.8rem;color:var(--text-base)">{{ termin.datum_anzeige }}</div>
+              {% for spiel in termin.spiele %}
+              <div class="d-flex justify-content-center gap-1 mt-1 flex-wrap">
+                <span class="chip {% if spiel.mannschaft == 'BD 1' %}chip-bd1{% else %}chip-bd2{% endif %}">
+                  {{ spiel.mannschaft }}
+                </span>
+                <span class="chip {% if spiel.heimspiel %}chip-home{% else %}chip-away{% endif %}">
+                  {% if spiel.heimspiel %}<i class="bi bi-house-fill"></i>{% else %}<i class="bi bi-geo-alt-fill"></i>{% endif %}
+                  {% if spiel.heimspiel %}Heim{% else %}Auswärts{% endif %}
+                </span>
+              </div>
+              {% endfor %}
+            </th>
+            {% endfor %}
+            <th class="text-center py-3 pe-4">Gesamt</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for kind in kinder %}
+          <tr>
+            <td class="ps-4 fw-semibold">{{ kind.name }}</td>
+            {% set ns = namespace(anzahl=0) %}
+            {% for termin in termine %}
+              {% if matrix[kind.id][termin.id] %}
+                {% set ns.anzahl = ns.anzahl + 1 %}
+                <td class="text-center">
+                  <i class="bi bi-check-circle-fill" style="color:var(--color-home);font-size:1rem"></i>
+                </td>
+              {% else %}
+                <td class="text-center">
+                  <i class="bi bi-dash" style="color:#cbd5e1;font-size:1.1rem"></i>
+                </td>
+              {% endif %}
+            {% endfor %}
+            <td class="text-center pe-4">
+              <span class="chip chip-bd1" style="font-size:.75rem;padding:3px 10px">
+                {{ ns.anzahl }}&thinsp;/&thinsp;{{ termine|length }}
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot style="background:#f8fafc">
+          <tr>
+            <td class="ps-4 fw-semibold text-muted" style="font-size:.78rem">Verfügbar</td>
+            {% for termin in termine %}
+              {% set count = namespace(n=0) %}
+              {% for kind in kinder %}
+                {% if matrix[kind.id][termin.id] %}{% set count.n = count.n + 1 %}{% endif %}
+              {% endfor %}
+              <td class="text-center">
+                <span class="chip chip-bd2" style="font-size:.75rem;padding:3px 10px">{{ count.n }}</span>
+              </td>
+            {% endfor %}
+            <td class="pe-4"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+{% endif %}
+
+{% endblock %}

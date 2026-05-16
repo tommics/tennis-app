@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Startseite{% endblock %}
+{% block content %}
+
+<div class="row justify-content-center">
+  <div class="col-md-8 col-lg-6">
+
+    <!-- Hero -->
+    <div class="text-center mb-4">
+      <div style="font-size:3rem;line-height:1">🎾</div>
+      <h1 class="fw-700 mt-2 mb-1" style="font-size:1.75rem;font-weight:700">Bayer Dormagen U11</h1>
+      <p class="text-muted" style="font-size:.95rem">Spielplan & Verfügbarkeit</p>
+    </div>
+
+    <!-- Card -->
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        <h5 class="fw-semibold mb-1">Wer spielt?</h5>
+        <p class="text-muted mb-4" style="font-size:.875rem">
+          Gib den Namen deines Kindes ein, um die Verfügbarkeit für Spieltermine einzutragen.
+        </p>
+
+        <form method="post">
+          <div class="mb-4">
+            <label for="name" class="form-label fw-semibold" style="font-size:.875rem">Name des Kindes</label>
+            <input type="text" class="form-control form-control-lg" id="name" name="name"
+                   value="{{ kind_name }}" placeholder="z. B. Max Mustermann" required autofocus
+                   style="border-radius:10px;border-color:#cbd5e1;font-size:1rem">
+            <div class="form-text mt-1" style="font-size:.78rem">
+              Der Name wird im Browser gespeichert – beim nächsten Besuch bist du direkt drin.
+            </div>
+          </div>
+          <button type="submit" class="btn btn-brand btn-lg w-100" style="font-size:1rem">
+            <i class="bi bi-arrow-right-circle me-2"></i>Zur Verfügbarkeit
+          </button>
+        </form>
+
+        {% if kind_name %}
+        <hr class="my-4" style="border-color:#e2e8f0">
+        <div class="d-flex align-items-center gap-3">
+          <div class="flex-grow-1" style="font-size:.875rem">
+            Eingeloggt als <strong>{{ kind_name }}</strong>
+          </div>
+          <a href="/verfuegbarkeit" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-calendar-check me-1"></i>Direkt weiter
+          </a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Quick links -->
+    <div class="row g-3 mt-2">
+      <div class="col-4">
+        <a href="/aufstellung" class="card text-decoration-none text-center p-3 h-100"
+           style="transition:.15s" onmouseover="this.style.borderColor='#cbd5e1'" onmouseout="this.style.borderColor='#e2e8f0'">
+          <i class="bi bi-people-fill d-block mb-1" style="font-size:1.5rem;color:var(--color-bd1)"></i>
+          <div style="font-size:.78rem;font-weight:600;color:var(--text-base)">Aufstellung</div>
+        </a>
+      </div>
+      <div class="col-4">
+        <a href="/uebersicht" class="card text-decoration-none text-center p-3 h-100"
+           style="transition:.15s" onmouseover="this.style.borderColor='#cbd5e1'" onmouseout="this.style.borderColor='#e2e8f0'">
+          <i class="bi bi-grid-3x3-gap-fill d-block mb-1" style="font-size:1.5rem;color:var(--color-bd2)"></i>
+          <div style="font-size:.78rem;font-weight:600;color:var(--text-base)">Übersicht</div>
+        </a>
+      </div>
+      <div class="col-4">
+        <a href="/verfuegbarkeit" class="card text-decoration-none text-center p-3 h-100"
+           style="transition:.15s" onmouseover="this.style.borderColor='#cbd5e1'" onmouseout="this.style.borderColor='#e2e8f0'">
+          <i class="bi bi-calendar-check-fill d-block mb-1" style="font-size:1.5rem;color:var(--color-home)"></i>
+          <div style="font-size:.78rem;font-weight:600;color:var(--text-base)">Verfügbarkeit</div>
+        </a>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

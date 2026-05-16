@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}Admin{% endblock %}
+{% block content %}
+
+<div class="mb-4">
+  <div class="page-title">Admin-Bereich</div>
+  <div class="text-muted" style="font-size:.875rem">Termine verwalten, Aufstellung generieren, Zeitplan sperren</div>
+</div>
+
+<div class="row g-4">
+
+  <!-- Spieltermine -->
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header hdr-admin">
+        <i class="bi bi-calendar3 me-2"></i>Spieltermine
+      </div>
+      <div class="card-body">
+        {% if termine %}
+        <div class="d-flex flex-column gap-2 mb-3">
+          {% for termin in termine %}
+          <div class="d-flex align-items-center justify-content-between px-3 py-2"
+               style="background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0">
+            <div>
+              <span class="fw-semibold" style="font-size:.9rem">{{ termin.datum_anzeige }}</span>
+              <div class="d-flex gap-1 mt-1 flex-wrap">
+                {% for spiel in termin.spiele %}
+                <span class="chip {% if spiel.mannschaft == 'BD 1' %}chip-bd1{% else %}chip-bd2{% endif %}">
+                  {{ spiel.mannschaft }}
+                </span>
+                <span class="chip {% if spiel.heimspiel %}chip-home{% else %}chip-away{% endif %}">
+                  {% if spiel.heimspiel %}Heim{% else %}Auswärts{% endif %}
+                </span>
+                {% endfor %}
+              </div>
+            </div>
+            <form method="post" action="/admin/termin/{{ termin.id }}/loeschen"
+                  onsubmit="return confirm('Termin {{ termin.datum_anzeige }} wirklich löschen?')">
+              <button type="submit" class="btn btn-sm py-1 px-2"
+                      style="font-size:.75rem;color:#dc2626;border:1px solid #fecaca;background:#fff5f5;border-radius:6px">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+          <p class="text-muted mb-3" style="font-size:.875rem">Noch keine Termine eingetragen.</p>
+        {% endif %}
+
+        <form method="post" action="/admin/termin/hinzufuegen" class="d-flex gap-2">
+          <input type="date" name="datum" class="form-control form-control-sm" required
+                 style="border-radius:8px;font-size:.875rem">
+          <button type="submit" class="btn btn-brand btn-sm px-3">
+            <i class="bi bi-plus-lg me-1"></i>Hinzufügen
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right column -->
+  <div class="col-md-6 d-flex flex-column gap-4">
+
+    <!-- Zeitplan sperren -->
+    <div class="card">
+      <div class="card-header hdr-admin">
+        <i class="bi bi-shield-lock me-2"></i>Zeitplan
+      </div>
+      <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between gap-3">
+          <div>
+            <div style="font-size:.875rem;font-weight:500">Aktueller Status</div>
+            <div class="mt-1">
+              {% if gesperrt %}
+                <span class="status-locked"><i class="bi bi-lock-fill me-1"></i>Gesperrt – Eltern können nicht ändern</span>
+              {% else %}
+                <span class="status-open"><i class="bi bi-unlock-fill me-1"></i>Offen – Eltern können eintragen</span>
+              {% endif %}
+            </div>
+          </div>
+          <form method="post" action="/admin/sperren">
+            <button type="submit"
+                    class="btn btn-sm px-3 {% if gesperrt %}btn-outline-success{% else %}btn-outline-danger{% endif %}">
+              {% if gesperrt %}<i class="bi bi-unlock me-1"></i>Entsperren
+              {% else %}<i class="bi bi-lock me-1"></i>Sperren{% endif %}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Aufstellung -->
+    <div class="card">
+      <div class="card-header hdr-admin">
+        <i class="bi bi-people me-2"></i>Aufstellung
+      </div>
+      <div class="card-body">
+        <p class="text-muted mb-3" style="font-size:.875rem">
+          Verteilt alle verfügbaren Kinder fair auf die Termine – 4 Spieler pro Mannschaft + gemeinsamer Ersatzpool.
+        </p>
+        <div class="d-flex gap-2 flex-wrap">
+          <form method="post" action="/admin/aufstellung/generieren"
+                onsubmit="return confirm('{% if hat_aufstellung %}Bestehende Aufstellung überschreiben?{% else %}Aufstellung jetzt generieren?{% endif %}')">
+            <button type="submit" class="btn btn-brand btn-sm px-3">
+              <i class="bi bi-arrow-clockwise me-1"></i>
+              {% if hat_aufstellung %}Neu generieren{% else %}Aufstellung generieren{% endif %}
+            </button>
+          </form>
+          {% if hat_aufstellung %}
+          <a href="/aufstellung" class="btn btn-outline-secondary btn-sm px-3">
+            <i class="bi bi-eye me-1"></i>Aufstellung anzeigen
+          </a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Kinder -->
+    <div class="card">
+      <div class="card-header hdr-admin">
+        <i class="bi bi-person-lines-fill me-2"></i>Eingetragene Kinder
+      </div>
+      <div class="card-body">
+        {% if kinder %}
+        <div class="d-flex flex-column gap-2">
+          {% for kind in kinder %}
+          <div class="d-flex align-items-center justify-content-between px-3 py-2"
+               style="background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0">
+            <span style="font-weight:500;font-size:.9rem">{{ kind.name }}</span>
+            <form method="post" action="/admin/kind/{{ kind.id }}/loeschen"
+                  onsubmit="return confirm('{{ kind.name }} und alle Einträge löschen?')">
+              <button type="submit" class="btn btn-sm py-1 px-2"
+                      style="font-size:.75rem;color:#dc2626;border:1px solid #fecaca;background:#fff5f5;border-radius:6px">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+          <p class="text-muted mb-0" style="font-size:.875rem">Noch keine Kinder eingetragen.</p>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
