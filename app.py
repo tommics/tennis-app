@@ -7,7 +7,11 @@ from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'bitte-in-produktion-aendern')
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tennis.db'
+_db_path = os.environ.get('DATABASE_PATH', '')
+if _db_path:
+    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{_db_path}'
+else:
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tennis.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
