@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}Statistik{% endblock %}
+{% block content %}
+
+<div class="mb-4">
+  <div class="page-title">Spieler-Statistik</div>
+  <div class="text-muted" style="font-size:.875rem">Einsätze je Kind über alle Spieltermine</div>
+</div>
+
+{% if not rows %}
+  <div class="card">
+    <div class="card-body text-center py-5 text-muted">
+      <i class="bi bi-bar-chart d-block mb-2" style="font-size:2rem"></i>
+      Noch keine Daten vorhanden.
+    </div>
+  </div>
+{% else %}
+
+  <!-- Summary cards -->
+  {% set max_gesamt = rows | map(attribute='gesamt') | max %}
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="card text-center p-3">
+        <div style="font-size:1.8rem;font-weight:700;color:var(--color-bd1)">{{ rows|length }}</div>
+        <div style="font-size:.78rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px">Kinder</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card text-center p-3">
+        <div style="font-size:1.8rem;font-weight:700;color:var(--color-home)">{{ total_termine }}</div>
+        <div style="font-size:.78rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px">Spieltermine</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card text-center p-3">
+        <div style="font-size:1.8rem;font-weight:700;color:var(--color-bd1)">
+          {{ rows | map(attribute='gesamt') | sum }}
+        </div>
+        <div style="font-size:.78rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px">Spieler-Einsätze</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card text-center p-3">
+        <div style="font-size:1.8rem;font-weight:700;color:var(--text-muted)">
+          {{ rows | map(attribute='ersatz') | sum }}
+        </div>
+        <div style="font-size:.78rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px">Ersatz-Einsätze</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main table -->
+  <div class="table-card">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0" style="font-size:.875rem">
+        <thead style="background:#f8fafc">
+          <tr>
+            <th class="ps-4 py-3 text-start" style="min-width:160px">Kind</th>
+            <th class="py-3 text-center">
+              <span class="chip chip-bd1">BD 1</span>
+            </th>
+            <th class="py-3 text-center">
+              <span class="chip chip-bd2">BD 2</span>
+            </th>
+            <th class="py-3 text-center" style="min-width:160px">Gesamt Spieler</th>
+            <th class="py-3 text-center">Ersatz</th>
+            <th class="py-3 text-center pe-4">Verfügbar</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          {% set pct = (row.gesamt / max_gesamt * 100) if max_gesamt > 0 else 0 %}
+          <tr>
+            <!-- Name -->
+            <td class="ps-4 fw-semibold">{{ row.kind.name }}</td>
+
+            <!-- BD 1 spieler -->
+            <td class="text-center">
+              {% if row.bd1 > 0 %}
+                <span class="chip chip-bd1" style="font-size:.75rem;padding:3px 10px">{{ row.bd1 }}</span>
+              {% else %}
+                <span style="color:#cbd5e1">–</span>
+              {% endif %}
+            </td>
+
+            <!-- BD 2 spieler -->
+            <td class="text-center">
+              {% if row.bd2 > 0 %}
+                <span class="chip chip-bd2" style="font-size:.75rem;padding:3px 10px">{{ row.bd2 }}</span>
+              {% else %}
+                <span style="color:#cbd5e1">–</span>
+              {% endif %}
+            </td>
+
+            <!-- Gesamt with progress bar -->
+            <td class="text-center px-3">
+              <div class="d-flex align-items-center gap-2">
+                <div style="flex:1;background:#e2e8f0;border-radius:999px;height:6px;overflow:hidden">
+                  <div style="width:{{ pct }}%;height:100%;background:{% if pct >= 75 %}var(--color-home){% elif pct >= 40 %}var(--color-away){% else %}#94a3b8{% endif %};border-radius:999px;transition:width .3s"></div>
+                </div>
+                <span style="font-weight:700;min-width:18px;font-size:.9rem">{{ row.gesamt }}</span>
+              </div>
+            </td>
+
+            <!-- Ersatz -->
+            <td class="text-center">
+              {% if row.ersatz > 0 %}
+                <span style="font-size:.85rem;color:var(--text-muted)">{{ row.ersatz }}</span>
+              {% else %}
+                <span style="color:#cbd5e1">–</span>
+              {% endif %}
+            </td>
+
+            <!-- Verfügbar -->
+            <td class="text-center pe-4">
+              <span style="font-size:.85rem;color:var(--text-muted)">
+                {{ row.verfuegbar }} / {{ total_termine }}
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot style="background:#f8fafc">
+          <tr>
+            <td class="ps-4 fw-semibold text-muted" style="font-size:.78rem">Gesamt</td>
+            <td class="text-center">
+              <span class="chip chip-bd1" style="font-size:.72rem">
+                {{ rows | map(attribute='bd1') | sum }}
+              </span>
+            </td>
+            <td class="text-center">
+              <span class="chip chip-bd2" style="font-size:.72rem">
+                {{ rows | map(attribute='bd2') | sum }}
+              </span>
+            </td>
+            <td class="text-center px-3">
+              <span style="font-weight:700">{{ rows | map(attribute='gesamt') | sum }}</span>
+            </td>
+            <td class="text-center">
+              <span style="font-size:.85rem;color:var(--text-muted)">
+                {{ rows | map(attribute='ersatz') | sum }}
+              </span>
+            </td>
+            <td class="pe-4"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  <!-- Legend -->
+  <div class="mt-3 d-flex gap-3 flex-wrap" style="font-size:.78rem;color:var(--text-muted)">
+    <span><span style="display:inline-block;width:10px;height:10px;background:var(--color-home);border-radius:999px;margin-right:4px"></span>≥ 75% der Einsätze</span>
+    <span><span style="display:inline-block;width:10px;height:10px;background:var(--color-away);border-radius:999px;margin-right:4px"></span>40–74%</span>
+    <span><span style="display:inline-block;width:10px;height:10px;background:#94a3b8;border-radius:999px;margin-right:4px"></span>< 40%</span>
+  </div>
+
+{% endif %}
+{% endblock %}

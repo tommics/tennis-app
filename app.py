@@ -157,6 +157,31 @@ def verfuegbarkeit():
                            kind_name=kind_name)
 
 
+@app.route('/statistik')
+def statistik():
+    kinder = Kind.query.order_by(Kind.name).all()
+    termine = Spieltermin.query.order_by(Spieltermin.datum).all()
+    total_termine = len(termine)
+
+    rows = []
+    for kind in kinder:
+        bd1 = Aufstellung.query.filter_by(kind_id=kind.id, mannschaft='BD 1', rolle='spieler').count()
+        bd2 = Aufstellung.query.filter_by(kind_id=kind.id, mannschaft='BD 2', rolle='spieler').count()
+        ersatz = Aufstellung.query.filter_by(kind_id=kind.id, rolle='ersatz').count()
+        verfuegbar = Verfuegbarkeit.query.filter_by(kind_id=kind.id, verfuegbar=True).count()
+        rows.append({
+            'kind': kind,
+            'bd1': bd1,
+            'bd2': bd2,
+            'gesamt': bd1 + bd2,
+            'ersatz': ersatz,
+            'verfuegbar': verfuegbar,
+        })
+
+    rows.sort(key=lambda r: (-r['gesamt'], r['kind'].name))
+    return render_template('statistik.html', rows=rows, total_termine=total_termine)
+
+
 @app.route('/uebersicht')
 def uebersicht():
     termine = Spieltermin.query.order_by(Spieltermin.datum).all()
