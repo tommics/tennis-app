@@ -2,7 +2,7 @@ import os
 from datetime import datetime
 from functools import wraps
 
-from flask import Flask, make_response, redirect, render_template, request, session, url_for
+from flask import Flask, jsonify, make_response, redirect, render_template, request, session, url_for
 from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
@@ -361,6 +361,28 @@ def aufstellung_generieren():
 
     db.session.commit()
     return redirect(url_for('aufstellung'))
+
+
+@app.route('/admin/aufstellung/reorder', methods=['POST'])
+@admin_required
+def aufstellung_reorder():
+    lists = request.get_json().get('lists', [])
+    for lst in lists:
+        Aufstellung.query.filter_by(
+            termin_id=lst['termin_id'],
+            mannschaft=lst['mannschaft'],
+            rolle=lst['rolle']
+        ).delete()
+        for i, kind_id in enumerate(lst['kind_ids'], start=1):
+            db.session.add(Aufstellung(
+                termin_id=lst['termin_id'],
+                kind_id=int(kind_id),
+                mannschaft=lst['mannschaft'],
+                rolle=lst['rolle'],
+                position=i
+            ))
+    db.session.commit()
+    return jsonify({'ok': True})
 
 
 @app.route('/aufstellung/<int:termin_id>/<mannschaft>/spieler/<int:kind_id>/abwesend', methods=['POST'])
