@@ -296,6 +296,34 @@ def termin_hinzufuegen():
     return redirect(url_for('admin'))
 
 
+@app.route('/admin/spiel/<int:spiel_id>/bearbeiten', methods=['POST'])
+@admin_required
+def spiel_bearbeiten(spiel_id):
+    spiel      = db.get_or_404(Spiel, spiel_id)
+    old_termin = spiel.termin
+    new_datum  = request.form.get('datum', '').strip()
+    new_mann   = request.form.get('mannschaft', spiel.mannschaft).strip()
+
+    if new_datum and (new_datum != old_termin.datum or new_mann != spiel.mannschaft):
+        new_termin = Spieltermin.query.filter_by(datum=new_datum).first()
+        if not new_termin:
+            new_termin = Spieltermin(datum=new_datum)
+            db.session.add(new_termin)
+            db.session.flush()
+        spiel.termin_id  = new_termin.id
+        spiel.mannschaft = new_mann
+        db.session.flush()
+        if not old_termin.spiele:
+            db.session.delete(old_termin)
+
+    spiel.uhrzeit   = request.form.get('uhrzeit',  spiel.uhrzeit).strip()
+    spiel.gegner    = request.form.get('gegner',   spiel.gegner).strip()
+    spiel.heimspiel = request.form.get('heimspiel') == '1'
+    spiel.maps_link = request.form.get('maps_link', '').strip() or None
+    db.session.commit()
+    return redirect(url_for('admin'))
+
+
 @app.route('/admin/spiel/<int:spiel_id>/loeschen', methods=['POST'])
 @admin_required
 def spiel_loeschen(spiel_id):
