@@ -115,7 +115,7 @@
           {% set spieler_list = lineup[termin.id][m]['spieler'] %}
           {% set ersatz_list  = lineup[termin.id][m]['ersatz']  %}
           {% if spieler_list or ersatz_list %}
-          <div class="col">
+          <div class="col" data-datum="{{ termin.datum }}">
             <div class="card h-100" style="overflow:hidden">
 
               <!-- Card header -->
@@ -311,5 +311,21 @@ document.querySelectorAll('.sortable-list').forEach(listEl => {
 });
 </script>
 {% endif %}
+
+<script>
+(function() {
+  if (!window.matchMedia('(max-width: 767.98px)').matches) return;
+
+  const now = new Date();
+  const today = now.getFullYear() + '-'
+    + String(now.getMonth() + 1).padStart(2, '0') + '-'
+    + String(now.getDate()).padStart(2, '0');
+
+  const target = Array.from(document.querySelectorAll('[data-datum]'))
+    .find(el => el.dataset.datum >= today);
+
+  if (target) target.scrollIntoView({ behavior: 'auto', block: 'start' });
+})();
+</script>
 
 {% endblock %}
