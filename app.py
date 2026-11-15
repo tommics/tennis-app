@@ -1,12 +1,25 @@
+import logging
 import os
-from datetime import datetime
+import secrets
+from datetime import date, datetime
 from functools import wraps
 
 from flask import Flask, jsonify, make_response, redirect, render_template, request, session, url_for
 from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'bitte-in-produktion-aendern')
+IN_PRODUKTION = bool(os.environ.get('FLY_APP_NAME'))
+
+_secret_key = os.environ.get('SECRET_KEY')
+if not _secret_key:
+    if IN_PRODUKTION:
+        logging.warning('SECRET_KEY ist nicht gesetzt – es wird ein zufälliger Schlüssel verwendet '
+                        '(Admin-Logins gehen bei jedem Neustart verloren). '
+                        'Bitte setzen: fly secrets set SECRET_KEY=...')
+        _secret_key = secrets.token_hex(32)
+    else:
+        _secret_key = 'nur-fuer-lokale-entwicklung'
+app.config['SECRET_KEY'] = _secret_key
 _db_path = os.environ.get('DATABASE_PATH', '')
 if _db_path:
     app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{_db_path}'
@@ -15,7 +28,12 @@ else:
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'tennis123')
+# In production the admin password must come from the environment; the
+# well-known development default is only accepted when running locally.
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD') or (None if IN_PRODUKTION else 'tennis123')
+if ADMIN_PASSWORD is None:
+    logging.warning('ADMIN_PASSWORD ist nicht gesetzt – Admin-Login ist deaktiviert. '
+                    'Bitte setzen: fly secrets set ADMIN_PASSWORD=...')
 
 
 # ---------------------------------------------------------------------------
@@ -98,8 +116,24 @@ def admin_required(f):
     return decorated
 
 
+def normalisiere_name(name):
+    """Collapse whitespace so 'Max  Muster ' and 'Max Muster' are the same."""
+    return ' '.join((name or '').split())
+
+
+def finde_kind(name):
+    """Case-insensitive lookup (in Python, so umlauts compare correctly too)."""
+    key = normalisiere_name(name).casefold()
+    if not key:
+        return None
+    for kind in Kind.query.all():
+        if normalisiere_name(kind.name).casefold() == key:
+            return kind
+    return None
+
+
 def get_kind_name():
-    return request.cookies.get('kind_name', '').strip()
+    return normalisiere_name(request.cookies.get('kind_name', ''))
 
 
 # ---------------------------------------------------------------------------
@@ -109,8 +143,11 @@ def get_kind_name():
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
-        name = request.form.get('name', '').strip()
+        name = normalisiere_name(request.form.get('name', ''))
         if name:
+            vorhanden = finde_kind(name)
+            if vorhanden:
+                name = vorhanden.name
             resp = make_response(redirect(url_for('verfuegbarkeit')))
             resp.set_cookie('kind_name', name, max_age=30 * 24 * 3600)
             return resp
@@ -128,7 +165,7 @@ def verfuegbarkeit():
     termine = Spieltermin.query.order_by(Spieltermin.datum).all()
 
     if request.method == 'POST' and not gesperrt:
-        kind = Kind.query.filter_by(name=kind_name).first()
+        kind = finde_kind(kind_name)
         if not kind:
             kind = Kind(name=kind_name)
             db.session.add(kind)
@@ -144,7 +181,7 @@ def verfuegbarkeit():
         db.session.commit()
         return redirect(url_for('verfuegbarkeit'))
 
-    kind = Kind.query.filter_by(name=kind_name).first()
+    kind = finde_kind(kind_name)
     verfuegbarkeiten = {}
     if kind:
         for v in Verfuegbarkeit.query.filter_by(kind_id=kind.id).all():
@@ -163,12 +200,21 @@ def statistik():
     termine = Spieltermin.query.order_by(Spieltermin.datum).all()
     total_termine = len(termine)
 
+    from collections import Counter
+    bd1_c, bd2_c, ersatz_c = Counter(), Counter(), Counter()
+    for a in Aufstellung.query.all():
+        if a.rolle == 'ersatz':
+            ersatz_c[a.kind_id] += 1
+        elif a.mannschaft == 'BD 1':
+            bd1_c[a.kind_id] += 1
+        elif a.mannschaft == 'BD 2':
+            bd2_c[a.kind_id] += 1
+    verf_c = Counter(v.kind_id for v in Verfuegbarkeit.query.filter_by(verfuegbar=True).all())
+
     rows = []
     for kind in kinder:
-        bd1 = Aufstellung.query.filter_by(kind_id=kind.id, mannschaft='BD 1', rolle='spieler').count()
-        bd2 = Aufstellung.query.filter_by(kind_id=kind.id, mannschaft='BD 2', rolle='spieler').count()
-        ersatz = Aufstellung.query.filter_by(kind_id=kind.id, rolle='ersatz').count()
-        verfuegbar = Verfuegbarkeit.query.filter_by(kind_id=kind.id, verfuegbar=True).count()
+        bd1, bd2 = bd1_c[kind.id], bd2_c[kind.id]
+        ersatz, verfuegbar = ersatz_c[kind.id], verf_c[kind.id]
         rows.append({
             'kind': kind,
             'bd1': bd1,
@@ -187,12 +233,9 @@ def uebersicht():
     termine = Spieltermin.query.order_by(Spieltermin.datum).all()
     kinder = Kind.query.order_by(Kind.name).all()
 
-    matrix = {}
-    for kind in kinder:
-        matrix[kind.id] = {}
-        for termin in termine:
-            v = Verfuegbarkeit.query.filter_by(kind_id=kind.id, termin_id=termin.id).first()
-            matrix[kind.id][termin.id] = v.verfuegbar if v else False
+    vorhanden = {(v.kind_id, v.termin_id): v.verfuegbar for v in Verfuegbarkeit.query.all()}
+    matrix = {kind.id: {t.id: bool(vorhanden.get((kind.id, t.id), False)) for t in termine}
+              for kind in kinder}
 
     return render_template('uebersicht.html',
                            termine=termine,
@@ -206,21 +249,12 @@ def aufstellung():
     gesperrt = ist_gesperrt()
     termine = Spieltermin.query.order_by(Spieltermin.datum).all()
 
-    lineup = {}
-    for termin in termine:
-        lineup[termin.id] = {}
-        for spiel in termin.spiele:
-            m = spiel.mannschaft
-            spieler_eintraege = (Aufstellung.query
-                                 .filter_by(termin_id=termin.id, mannschaft=m, rolle='spieler')
-                                 .order_by(Aufstellung.position).all())
-            ersatz_eintraege = (Aufstellung.query
-                                .filter_by(termin_id=termin.id, mannschaft=m, rolle='ersatz')
-                                .order_by(Aufstellung.position).all())
-            lineup[termin.id][m] = {
-                'spieler': [(e, db.session.get(Kind, e.kind_id)) for e in spieler_eintraege],
-                'ersatz':  [(e, db.session.get(Kind, e.kind_id)) for e in ersatz_eintraege],
-            }
+    kinder = {k.id: k for k in Kind.query.all()}
+    lineup = {t.id: {s.mannschaft: {'spieler': [], 'ersatz': []} for s in t.spiele} for t in termine}
+    for e in Aufstellung.query.order_by(Aufstellung.position).all():
+        ziel = lineup.get(e.termin_id, {}).get(e.mannschaft)
+        if ziel is not None and e.rolle in ziel:
+            ziel[e.rolle].append((e, kinder.get(e.kind_id)))
 
     return render_template('aufstellung.html',
                            termine=termine,
@@ -237,10 +271,14 @@ def aufstellung():
 def admin_login():
     fehler = None
     if request.method == 'POST':
-        if request.form.get('passwort', '') == ADMIN_PASSWORD:
+        eingabe = request.form.get('passwort', '')
+        if ADMIN_PASSWORD is None:
+            fehler = 'Admin-Login ist nicht eingerichtet (ADMIN_PASSWORD fehlt).'
+        elif secrets.compare_digest(eingabe.encode(), ADMIN_PASSWORD.encode()):
             session['admin'] = True
             return redirect(url_for('admin'))
-        fehler = 'Falsches Passwort.'
+        else:
+            fehler = 'Falsches Passwort.'
     return render_template('admin_login.html', fehler=fehler)
 
 
@@ -371,11 +409,22 @@ def sperren():
 @app.route('/admin/aufstellung/generieren', methods=['POST'])
 @admin_required
 def aufstellung_generieren():
-    Aufstellung.query.delete()
+    # Only (re)generate upcoming dates; past lineups are history and stay as they are.
+    heute = date.today().isoformat()
+    alle_termine = Spieltermin.query.order_by(Spieltermin.datum).all()
+    vergangene_ids = {t.id for t in alle_termine if t.datum < heute}
+    termine = [t for t in alle_termine if t.datum >= heute]
 
-    termine = Spieltermin.query.order_by(Spieltermin.datum).all()
+    zukuenftige_ids = [t.id for t in termine]
+    if zukuenftige_ids:
+        Aufstellung.query.filter(Aufstellung.termin_id.in_(zukuenftige_ids)).delete(synchronize_session=False)
+
+    # Start the fairness count from games already played.
     kinder = Kind.query.all()
     play_counts = {k.id: 0 for k in kinder}
+    for a in Aufstellung.query.filter_by(rolle='spieler').all():
+        if a.termin_id in vergangene_ids:
+            play_counts[a.kind_id] = play_counts.get(a.kind_id, 0) + 1
 
     for termin in termine:
         verfuegbare_ids = [

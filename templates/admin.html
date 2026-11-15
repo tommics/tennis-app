@@ -192,7 +192,7 @@
         </p>
         <div class="d-flex gap-2 flex-wrap">
           <form method="post" action="/admin/aufstellung/generieren"
-                onsubmit="return confirm('{% if hat_aufstellung %}Bestehende Aufstellung überschreiben?{% else %}Aufstellung jetzt generieren?{% endif %}')">
+                onsubmit="return confirm('{% if hat_aufstellung %}Aufstellung für kommende Termine neu generieren? Manuelle Änderungen an kommenden Terminen gehen verloren, vergangene Termine bleiben erhalten.{% else %}Aufstellung jetzt generieren?{% endif %}')">
             <button type="submit" class="btn btn-brand btn-sm px-3">
               <i class="bi bi-arrow-clockwise me-1"></i>
               {% if hat_aufstellung %}Neu generieren{% else %}Aufstellung generieren{% endif %}
